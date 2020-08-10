@@ -32,8 +32,8 @@ To build, install and run on Ubuntu (or other Debian based systems) try the foll
 
 ```bash
 #get dependencies
-sudo apt-add-repository ppa:kevinkreiser/prime-server
-sudo add-apt-repository ppa:valhalla-routing/valhalla
+sudo apt-add-repository ppa:kevinkreiser/prime-server -y
+sudo add-apt-repository ppa:valhalla-routing/valhalla -y
 sudo apt-get update
 sudo apt-get install libvalhalla-dev valhalla-bin
 
@@ -41,17 +41,17 @@ sudo apt-get install libvalhalla-dev valhalla-bin
 wget YOUR_FAV_PLANET_MIRROR_HERE -O planet.pbf
 
 #get the config and setup for it
-valhalla_build_config --mjolnir-tile-dir ${PWD}/valhalla_tiles --mjolnir-tile-extract ${PWD}/valhalla_tiles.tar --mjolnir-timezone ${PWD}/valhalla_tiles/timezones.sqlite --mjolnir-admin ${PWD}/valhalla_tiles/admins.sqlite > valhalla.json
+valhalla_build_config --mjolnir-tile-dir valhalla_tiles --mjolnir-tile-extract valhalla_tiles.tar --mjolnir-timezone valhalla_tiles/timezones.sqlite --mjolnir-admin valhalla_tiles/admins.sqlite > valhalla.json
 
 #build routing tiles
 #TODO: run valhalla_build_admins?
-valhalla_build_tiles -c valhalla.json planet.pbf
+valhalla_build_tiles -c valhalla.json /data-pbf/gcc-states-latest.osm.pbf
 
 #tar it up for running the server
 find valhalla_tiles | sort -n | tar cf tiles.tar --no-recursion -T -
 
 #make some osmlr segments
-LD_LIBRARY_PATH=/usr/lib:/usr/local/lib osmlr -m 1 -T ${PWD}/osmlr_tiles valhalla.json
+ LD_LIBRARY_PATH=/usr/lib:/usr/local/lib ./osmlr -m 1 -T osmlr_tiles -J osmlr_geojsons valhalla.json
 
 # -j 2 uses two threads for association process (use more or fewer as available cores permit)
 valhalla_associate_segments -t ${PWD}/osmlr_tiles -j 2 --config valhalla.json
@@ -62,6 +62,42 @@ find valhalla_tiles | sort -n | tar rf tiles.tar --no-recursion -T -
 #Update OSMLR segments.  
 This will copy your existing pbf and geojson tiles to their equivalent output directories and update the tiles as needed.  Features will be removed add added from the feature collection in the geojson tiles.  Moreover, segements that no longer exist in the valhalla tiles will be cleared and a deletion date will be set. 
 ./osmlr -u -m 2 -f 256 -P ./<old_tiles>/pbf -G ./<old_tiles>/geojson -J ./<new_tiles>/geojson -T ./<new_tiles>/pbf --config valhalla.json
+
+#HAVE FUN!
+```
+
+
+
+## Docker
+```
+docker build -t opentraffic-osmlr:v1.0.0 .
+
+
+docker run -it opentraffic-osmlr:v1.0.0
+docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0 ls /data
+
+#get the config and setup for it
+docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0 valhalla_build_config --mjolnir-tile-dir /data/valhalla_tiles --mjolnir-tile-extract /data/valhalla_tiles.tar --mjolnir-timezone /data/valhalla_tiles/timezones.sqlite --mjolnir-admin /data/valhalla_tiles/admins.sqlite > valhalla.json
+
+#build routing tiles
+#TODO: run valhalla_build_admins?
+docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0  valhalla_build_tiles -c /data/valhalla.json /data/gcc-states-latest.osm.pbf
+
+#tar it up for running the server
+find ./valhalla_tiles | sort -n | tar cf tiles.tar --no-recursion -T -
+
+#make some osmlr segments
+docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0 osmlr -m 1 -T /data/osmlr_tiles -J /data/osmlr_geojsons /data/valhalla.json
+
+# -j 2 uses two threads for association process (use more or fewer as available cores permit)
+docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0 valhalla_associate_segments -t /data/osmlr_tiles -j 2 --config /data/valhalla.json
+
+#rebuild tar with traffic segement associated tiles
+find ./valhalla_tiles | sort -n | tar rf tiles.tar --no-recursion -T -
+
+#Update OSMLR segments.  
+This will copy your existing pbf and geojson tiles to their equivalent output directories and update the tiles as needed.  Features will be removed add added from the feature collection in the geojson tiles.  Moreover, segements that no longer exist in the valhalla tiles will be cleared and a deletion date will be set. 
+docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0 osmlr -u -m 2 -f 256 -P /data/<old_tiles>/pbf -G /data/<old_tiles>/geojson -J /data/<new_tiles>/geojson -T /data/<new_tiles>/pbf --config /data/valhalla.json
 
 #HAVE FUN!
 ```
