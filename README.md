@@ -70,34 +70,45 @@ This will copy your existing pbf and geojson tiles to their equivalent output di
 
 ## Docker
 ```
-docker build -t opentraffic-osmlr:v1.0.0 .
+docker build -t swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest .
+docker push swr.ap-southeast-3.myhuaweicloud.com/gomap/capistrano:latest
 
 
-docker run -it opentraffic-osmlr:v1.0.0
-docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0 ls /data
+docker run -it swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest
+docker run --volume ${PWD}:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest ls /data
+docker run --volume ~/Documents/Docker/osmlr-data:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest ls /data
 
 #get the config and setup for it
-docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0 valhalla_build_config --mjolnir-tile-dir /data/valhalla_tiles --mjolnir-tile-extract /data/valhalla_tiles.tar --mjolnir-timezone /data/valhalla_tiles/timezones.sqlite --mjolnir-admin /data/valhalla_tiles/admins.sqlite > valhalla.json
+docker run --volume ${PWD}:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest valhalla_build_config --mjolnir-tile-dir /data/valhalla_tiles --mjolnir-tile-extract /data/valhalla_tiles.tar --mjolnir-timezone /data/valhalla_tiles/timezones.sqlite --mjolnir-admin /data/valhalla_tiles/admins.sqlite > valhalla.json
+docker run --volume  ~/Documents/Docker/osmlr-data:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest valhalla_build_config --mjolnir-tile-dir /data/valhalla_tiles --mjolnir-tile-extract /data/valhalla_tiles.tar --mjolnir-timezone /data/valhalla_tiles/timezones.sqlite --mjolnir-admin /data/valhalla_tiles/admins.sqlite > ~/Documents/Docker/osmlr-data/valhalla.json
 
 #build routing tiles
 #TODO: run valhalla_build_admins?
-docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0  valhalla_build_tiles -c /data/valhalla.json /data/gcc-states-latest.osm.pbf
+docker run --volume ${PWD}:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest  valhalla_build_tiles -c /data/valhalla.json /data/uae.osm.pbf
+
+rm -f ~/Documents/Docker/osmlr-data/uae.osm.pbf
+docker run --rm -i --volume ~/Documents/Docker/osmlr-data:/osm mediagis/osmtools osmconvert /osm/uae.osm --out-pbf > ~/Documents/Docker/osmlr-data/uae.osm.pbf
+docker run --volume ~/Documents/Docker/osmlr-data:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest  valhalla_build_tiles -c /data/valhalla.json /data/uae.osm.pbf
 
 #tar it up for running the server
+cd ~/Documents/Docker/osmlr-data
 find ./valhalla_tiles | sort -n | tar cf tiles.tar --no-recursion -T -
 
 #make some osmlr segments
-docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0 osmlr -m 1 -T /data/osmlr_tiles -J /data/osmlr_geojsons /data/valhalla.json
+docker run --volume ${PWD}:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest osmlr -m 1 -T /data/osmlr_tiles -J /data/osmlr_geojsons /data/valhalla.json
+docker run --volume ~/Documents/Docker/osmlr-data:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest osmlr -m 1 -T /data/osmlr_tiles -J /data/osmlr_geojsons /data/valhalla.json
 
 # -j 2 uses two threads for association process (use more or fewer as available cores permit)
-docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0 valhalla_associate_segments -t /data/osmlr_tiles -j 2 --config /data/valhalla.json
+docker run --volume ${PWD}:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest valhalla_associate_segments -t /data/osmlr_tiles -j 2 --config /data/valhalla.json
+docker run --volume ~/Documents/Docker/osmlr-data:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest valhalla_associate_segments -t /data/osmlr_tiles -j 2 --config /data/valhalla.json
 
 #rebuild tar with traffic segement associated tiles
 find ./valhalla_tiles | sort -n | tar rf tiles.tar --no-recursion -T -
 
 #Update OSMLR segments.  
 This will copy your existing pbf and geojson tiles to their equivalent output directories and update the tiles as needed.  Features will be removed add added from the feature collection in the geojson tiles.  Moreover, segements that no longer exist in the valhalla tiles will be cleared and a deletion date will be set. 
-docker run --volume ${PWD}:/data opentraffic-osmlr:v1.0.0 osmlr -u -m 2 -f 256 -P /data/<old_tiles>/pbf -G /data/<old_tiles>/geojson -J /data/<new_tiles>/geojson -T /data/<new_tiles>/pbf --config /data/valhalla.json
+docker run --volume ${PWD}:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest osmlr -u -m 2 -f 256 -P /data/<old_tiles>/pbf -G /data/<old_tiles>/geojson -J /data/<new_tiles>/geojson -T /data/<new_tiles>/pbf --config /data/valhalla.json
+docker run --volume ~/Documents/Docker/osmlr-data:/data swr.ap-southeast-3.myhuaweicloud.com/gomap/opentraffic-osmlr:latest osmlr -u -m 2 -f 256 -P /data/<old_tiles>/pbf -G /data/<old_tiles>/geojson -J /data/<new_tiles>/geojson -T /data/<new_tiles>/pbf --config /data/valhalla.json
 
 #HAVE FUN!
 ```
